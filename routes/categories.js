@@ -47,5 +47,5 @@ router.get("/:key/products", async (req, res) => {
     return res.status(500).send({ message: "Hubo un error", error });
   }
 });
- //probando
+ //probando otra vez
 export default router;
