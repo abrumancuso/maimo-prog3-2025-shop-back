@@ -1,8 +1,8 @@
 import express from "express";
 import Category from "../models/category.js";
- 
+
 const router = express.Router();
- 
+
 router.post("/", async (req, res) => {
   try {
     const { name, slug } = req.body;
@@ -13,7 +13,7 @@ router.post("/", async (req, res) => {
     return res.status(500).send({ message: "Hubo un error", error });
   }
 });
- 
+
 router.get("/", async (_req, res) => {
   try {
     const categories = await Category.find().select("_id name slug");
@@ -26,18 +26,13 @@ router.get("/", async (_req, res) => {
 router.get("/:key/products", async (req, res) => {
   const { key } = req.params;
   try {
-    const isId = key.match(/^[0-9a-fA-F]{24}$/);
-    const category = isId
-      ? await Category.findById(key)
-      : await Category.findOne({ slug: key });
- 
+    let category = await Category.findOne({ slug: key });
+    if (!category) category = await Category.findById(key);
     if (!category) return res.status(404).send({ message: "Categoría no encontrada" });
- 
     const products = await (await import("../models/products.js")).default
       .find({ categories: category._id })
-      .select("_id name categories")
+      .select("_id name categories price condition packaging protection giftWrap")
       .populate("categories", "name slug");
- 
     return res.status(200).send({
       message: "Productos por categoría",
       category: { _id: category._id, name: category.name, slug: category.slug },
@@ -47,5 +42,6 @@ router.get("/:key/products", async (req, res) => {
     return res.status(500).send({ message: "Hubo un error", error });
   }
 });
- //probando otra vez
+
 export default router;
+
