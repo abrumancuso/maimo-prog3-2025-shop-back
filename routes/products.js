@@ -14,30 +14,35 @@ function calculateFinalPrice(p) {
   return Math.round(final / 100) * 100;
 }
 
-const FIELDS = "_id name categories price condition packaging protection giftWrap createdAt";
+const FIELDS = "_id name artist year categories price condition packaging protection giftWrap createdAt";
 
 const findAllProducts = async (req, res) => {
   try {
     const { ids, category } = req.query;
     const query = {};
+
     if (ids) {
       const list = ids.split(",").map(s => s.trim()).filter(Boolean);
       query._id = { $in: list };
     }
+
     if (category) {
       let cat = await Category.findOne({ slug: category });
       if (!cat) cat = await Category.findById(category);
       if (!cat) return res.status(404).send({ message: "Categoría no encontrada" });
       query.categories = cat._id;
     }
+
     const docs = await Product.find(query)
       .select(FIELDS)
       .sort({ createdAt: -1 })
       .populate("categories", "name slug");
+
     const products = docs.map(d => {
       const p = d.toObject();
       return { ...p, finalPrice: calculateFinalPrice(p) };
     });
+
     return res.status(200).send({ message: "todos los productos", products });
   } catch (error) {
     res.status(500).json({ message: "Error al obtener todos los productos", error });
@@ -51,6 +56,7 @@ const findOneProduct = async (req, res) => {
       .select(FIELDS)
       .populate("categories", "name slug");
     if (!d) return res.status(404).send({ message: "Producto no encontrado", id });
+
     const product = d.toObject();
     return res.status(200).send({
       message: "Producto encontrado",
@@ -64,6 +70,8 @@ const findOneProduct = async (req, res) => {
 const addProduct = async (req, res) => {
   const {
     name,
+    artist,
+    year,
     price,
     condition = "new",
     packaging = "vinyl_only",
@@ -71,9 +79,12 @@ const addProduct = async (req, res) => {
     giftWrap = false,
     categories
   } = req.body;
+
   try {
     const product = new Product({
       name,
+      artist,
+      year,
       price,
       condition,
       packaging,
@@ -81,10 +92,13 @@ const addProduct = async (req, res) => {
       giftWrap,
       categories
     });
+
     await product.save();
+
     const created = await Product.findById(product._id)
       .select(FIELDS)
       .populate("categories", "name slug");
+
     const p = created.toObject();
     return res.status(200).send({
       message: "Producto creado",
@@ -113,6 +127,8 @@ const updateProduct = async (req, res) => {
   const { id } = req.params;
   const {
     name,
+    artist,
+    year,
     price,
     condition,
     packaging,
@@ -120,23 +136,30 @@ const updateProduct = async (req, res) => {
     giftWrap,
     categories
   } = req.body;
+
   try {
     const productToUpdate = await Product.findOne({ _id: id });
     if (!productToUpdate) {
       return res.status(404).send({ message: "Producto no encontrado", id });
     }
+
     if (typeof name !== "undefined") productToUpdate.name = name;
+    if (typeof artist !== "undefined") productToUpdate.artist = artist;
+    if (typeof year !== "undefined") productToUpdate.year = year;
     if (typeof price !== "undefined") productToUpdate.price = price;
     if (typeof condition !== "undefined") productToUpdate.condition = condition;
     if (typeof packaging !== "undefined") productToUpdate.packaging = packaging;
     if (typeof protection !== "undefined") productToUpdate.protection = protection;
     if (typeof giftWrap !== "undefined") productToUpdate.giftWrap = giftWrap;
     if (typeof categories !== "undefined") productToUpdate.categories = categories;
+
     await productToUpdate.save();
+
     const updated = await Product.findById(id)
       .select(FIELDS)
       .populate("categories", "name slug");
     const p = updated.toObject();
+
     return res.status(200).send({
       message: "Producto actualizado",
       product: { ...p, finalPrice: calculateFinalPrice(p) }
